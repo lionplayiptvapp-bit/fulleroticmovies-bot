@@ -947,7 +947,7 @@ def send_archived(limit: int, delay: float) -> None:
                     (SELECT s.source_name
                      FROM article_sources s
                      WHERE s.article_url = a.url
-                     ORDER BY s.id ASC
+                     ORDER BY s.discovered_at ASC
                      LIMIT 1),
                     'Arşiv'
                 ) AS source_name
