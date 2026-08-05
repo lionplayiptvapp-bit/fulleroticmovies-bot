@@ -909,6 +909,108 @@ def list_categories() -> None:
 
 
 # ============================================================
+# ARŞİVİ TELEGRAM'A GÖNDERME
+# ============================================================
+
+def reset_sent() -> None:
+    """
+    Tüm içerikleri sent=0 yapar, böylece hepsi yeniden gönderilir.
+    """
+    with get_connection() as connection:
+        count = connection.execute(
+            "UPDATE articles SET sent = 0"
+        ).rowcount
+        connection.commit()
+
+    logging.info("%s içerik gönderilmek üzere sıfırlandı.", count)
+
+
+def send_archived(limit: int, delay: float) -> None:
+    """
+    Veritabanındaki gönderilmemiş içerikleri id sırasına göre
+    (en yeni arşivlenen son) Telegram'a gönderir.
+    """
+    ensure_telegram_configured()
+
+    with get_connection() as connection:
+        total_unsent = connection.execute(
+            "SELECT COUNT(*) AS total FROM articles WHERE sent = 0"
+        ).fetchone()["total"]
+
+        rows = connection.execute(
+            """
+            SELECT
+                a.title,
+                a.url,
+                a.image_url,
+                COALESCE(
+                    (SELECT s.source_name
+                     FROM article_sources s
+                     WHERE s.article_url = a.url
+                     ORDER BY s.id ASC
+                     LIMIT 1),
+                    'Arşiv'
+                ) AS source_name
+            FROM articles a
+            WHERE a.sent = 0
+            ORDER BY a.id ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    if not rows:
+        logging.info("Gönderilecek bekleyen içerik yok.")
+        return
+
+    logging.info(
+        "Toplam bekleyen: %s | Bu turda gönderilecek: %s | gecikme: %ss",
+        total_unsent,
+        len(rows),
+        delay,
+    )
+
+    sent_count = 0
+
+    for row in rows:
+        article = Article(
+            title=row["title"],
+            url=row["url"],
+            image_url=row["image_url"] or "",
+            source_name=row["source_name"],
+            source_url=NEWEST_URL,
+        )
+
+        try:
+            send_to_telegram(article)
+            mark_as_sent(article.url)
+            sent_count += 1
+
+            logging.info(
+                "[%s/%s] Gönderildi: %s",
+                sent_count,
+                len(rows),
+                article.title,
+            )
+
+        except Exception as error:
+            logging.error(
+                "Gönderilemedi: %s | %s",
+                article.title,
+                error,
+            )
+            break
+
+        time.sleep(delay)
+
+    logging.info(
+        "Bu tur tamamlandı. Gönderilen: %s | Kalan: %s",
+        sent_count,
+        total_unsent - sent_count,
+    )
+
+
+# ============================================================
 # GÖNDERİLEMEYENLERİ TEKRAR DENEME
 # ============================================================
 
@@ -1033,6 +1135,26 @@ def main() -> None:
         default=20,
     )
 
+    subparsers.add_parser(
+        "reset-sent",
+        help="Tüm içerikleri gönderilmemiş olarak işaretle.",
+    )
+
+    send_archived_parser = subparsers.add_parser(
+        "send-archived",
+        help="Arşivdeki gönderilmemiş içerikleri Telegram'a gönder.",
+    )
+    send_archived_parser.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+    )
+    send_archived_parser.add_argument(
+        "--delay",
+        type=float,
+        default=1.5,
+    )
+
     args = parser.parse_args()
 
     init_database()
@@ -1060,6 +1182,12 @@ def main() -> None:
 
     elif args.command == "retry":
         retry_unsent(args.limit)
+
+    elif args.command == "reset-sent":
+        reset_sent()
+
+    elif args.command == "send-archived":
+        send_archived(args.limit, args.delay)
 
 
 if __name__ == "__main__":
