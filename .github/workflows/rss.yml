@@ -6,10 +6,13 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - "rss_feed.py"
+      - "requirements.txt"
+      - ".github/workflows/rss.yml"
 
 permissions:
   contents: write
-  pages: write
 
 jobs:
   generate:
@@ -37,23 +40,3 @@ jobs:
           git add docs/feed.xml feed.db
           git diff --staged --quiet || git commit -m "Update RSS feed [skip ci]"
           git push
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs/
-
-  deploy:
-    needs: generate
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
