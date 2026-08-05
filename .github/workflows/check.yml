@@ -1,9 +1,8 @@
 name: Check New Content
 
 on:
-  schedule:
-    # Her 10 dakikada bir çalış
-    - cron: "*/10 * * * *"
+  # schedule:
+  #   - cron: "*/10 * * * *"
   workflow_dispatch: # Manuel tetikleme
 
 jobs:
