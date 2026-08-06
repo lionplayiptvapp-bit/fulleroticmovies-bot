@@ -541,7 +541,7 @@ def ensure_telegram_configured() -> None:
 
 
 def build_telegram_message(article: Article) -> str:
-    return article.url
+    return f"/qbleech {article.url}"
 
 
 def telegram_request(
