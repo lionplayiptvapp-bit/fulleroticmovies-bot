@@ -541,7 +541,8 @@ def ensure_telegram_configured() -> None:
 
 
 def build_telegram_message(article: Article) -> str:
-    return f"/qbleech {article.url}"
+    stream_url = extract_stream_url(article.url)
+    return f"/qbleech {stream_url}"
 
 
 def telegram_request(
@@ -601,6 +602,32 @@ def send_to_telegram(article: Article) -> None:
 # ============================================================
 # İLK KURULUM
 # ============================================================
+
+def extract_stream_url(video_url: str) -> str:
+    """Video sayfasından stream URL'sini çıkarır."""
+    try:
+        soup = get_soup(video_url)
+        
+        # JavaScript içindeki video_url değerini regex ile yakala
+        import re
+        html_text = str(soup)
+        
+        # video_url: 'https://...' pattern
+        match = re.search(r"video_url\s*:\s*['\"]([^'\"]+)['\"]", html_text)
+        if match:
+            return match.group(1)
+        
+        # video_alt_url: 'https://...' pattern (yedek)
+        match = re.search(r"video_alt_url\s*:\s*['\"]([^'\"]+)['\"]", html_text)
+        if match:
+            return match.group(1)
+            
+        logging.warning("Stream URL bulunamadı: %s", video_url)
+        return video_url
+    except Exception as e:
+        logging.warning("Stream URL çıkarılamadı: %s | %s", video_url, e)
+        return video_url
+
 
 def initialize_newest() -> None:
     articles = scrape_listing(
