@@ -541,7 +541,16 @@ def ensure_telegram_configured() -> None:
 
 
 def build_telegram_message(article: Article) -> str:
-    return f"/jl {article.url}"
+    title = html.escape(article.title)
+    source = html.escape(article.source_name)
+
+    return (
+        f"🆕 <b>{title}</b>\n\n"
+        f"📁 <b>Kaynak:</b> {source}\n\n"
+        f'<a href="{html.escape(article.url, quote=True)}">'
+        "İçeriği aç"
+        "</a>"
+    )
 
 
 def telegram_request(
@@ -578,6 +587,8 @@ def send_text_message(article: Article) -> None:
         {
             "chat_id": CHAT_ID,
             "text": build_telegram_message(article),
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False,
         },
     )
 
@@ -595,6 +606,16 @@ def send_photo_message(article: Article) -> None:
 
 
 def send_to_telegram(article: Article) -> None:
+    if article.image_url:
+        try:
+            send_photo_message(article)
+            return
+        except Exception as error:
+            logging.warning(
+                "Görsel gönderilemedi, metin deneniyor: %s",
+                error,
+            )
+
     send_text_message(article)
 
 
