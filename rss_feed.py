@@ -369,7 +369,7 @@ def generate_rss() -> None:
 
         items_xml.append(f"""    <item>
       <title>{escape(article.title)}</title>
-      <link>{escape(extract_stream_url(article.url))}</link>
+      <link>{escape(article.url)}</link>
       <guid isPermaLink="true">{escape(article.url)}</guid>
       <description>{escape(description) if not article.image_url else f'<![CDATA[{description}]]>'}</description>
       <pubDate>{pub_date}</pubDate>{categories_xml}
