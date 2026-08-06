@@ -316,6 +316,32 @@ def discover_categories() -> list[tuple[str, str]]:
 # RSS GENERATION
 # ============================================================
 
+def extract_stream_url(video_url: str) -> str:
+    """Video sayfasından stream URL'sini çıkarır."""
+    try:
+        soup = get_soup(video_url)
+        
+        # JavaScript içindeki video_url değerini regex ile yakala
+        import re
+        html_text = str(soup)
+        
+        # video_url: 'https://...' pattern
+        match = re.search(r"video_url\s*:\s*['\"]([^'\"]+)['\"]", html_text)
+        if match:
+            return match.group(1)
+        
+        # video_alt_url: 'https://...' pattern (yedek)
+        match = re.search(r"video_alt_url\s*:\s*['\"]([^'\"]+)['\"]", html_text)
+        if match:
+            return match.group(1)
+            
+        logging.warning("Stream URL bulunamadı: %s", video_url)
+        return video_url
+    except Exception as e:
+        logging.warning("Stream URL çıkarılamadı: %s | %s", video_url, e)
+        return video_url
+
+
 def generate_rss() -> None:
     articles = get_recent_articles(MAX_ITEMS_IN_FEED)
 
@@ -343,7 +369,7 @@ def generate_rss() -> None:
 
         items_xml.append(f"""    <item>
       <title>{escape(article.title)}</title>
-      <link>{escape(article.url)}</link>
+      <link>{escape(extract_stream_url(article.url))}</link>
       <guid isPermaLink="true">{escape(article.url)}</guid>
       <description>{escape(description) if not article.image_url else f'<![CDATA[{description}]]>'}</description>
       <pubDate>{pub_date}</pubDate>{categories_xml}
